@@ -29,3 +29,7 @@ Thumbs.db
 !Source/
 !*.uproject
 !Docs/
+
+# Synty (and other marketplace) art packs: large + licensed — keep out of git.
+# Migrated into the project on disk; not redistributable via the repo.
+Content/Biomes/
