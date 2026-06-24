@@ -1,0 +1,31 @@
+# Unreal Engine generated / transient folders
+Binaries/
+Build/
+DerivedDataCache/
+Intermediate/
+Saved/
+.vs/
+*.VC.db
+*.opensdf
+*.opendb
+*.sdf
+*.sln
+*.slnx
+*.suo
+*.xcodeproj
+*.xcworkspace
+
+# Build receipts / generated
+*.target
+Source/**/*.generated.h
+
+# OS noise
+Thumbs.db
+.DS_Store
+
+# Keep these:
+!Config/
+!Content/
+!Source/
+!*.uproject
+!Docs/
