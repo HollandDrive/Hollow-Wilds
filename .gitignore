@@ -30,6 +30,10 @@ Thumbs.db
 !*.uproject
 !Docs/
 
-# Synty (and other marketplace) art packs: large + licensed — keep out of git.
-# Migrated into the project on disk; not redistributable via the repo.
+# Marketplace / vendor content: large + licensed — keep out of git.
+# Migrated/installed into the project on disk; not redistributable via the repo.
 Content/Biomes/
+Content/UltraDynamicSky/
+
+# Vendor tool plugins (reinstallable)
+Plugins/Tripo3DUEBridge*/
