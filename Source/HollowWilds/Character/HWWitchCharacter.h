@@ -15,6 +15,7 @@ class UInputAction;
 class UAbilitySystemComponent;
 class UHWAbilitySystemComponent;
 class UHWAttributeSet;
+class UGameplayAbility;
 struct FInputActionValue;
 
 /**
@@ -164,6 +165,12 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 	TObjectPtr<UInputAction> IA_Element3;
 
+	//~ Abilities -------------------------------------------------------------
+
+	/** Abilities granted to the ASC when this character is possessed (server-authoritative). */
+	UPROPERTY(EditDefaultsOnly, Category = "Abilities")
+	TArray<TSubclassOf<UGameplayAbility>> DefaultAbilities;
+
 	//~ Input handlers --------------------------------------------------------
 
 	/** Camera-relative movement (real). */
@@ -225,6 +232,9 @@ private:
 
 	/** True while aiming (over-the-shoulder). */
 	bool bIsAiming = false;
+
+	/** Guards one-time server-side ability granting. */
+	bool bAbilitiesGranted = false;
 
 	/** Selected casting element. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Abilities", meta = (AllowPrivateAccess = "true"))

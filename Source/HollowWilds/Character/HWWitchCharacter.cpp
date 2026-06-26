@@ -18,6 +18,14 @@
 #include "Abilities/HWAbilitySystemComponent.h"
 #include "Attributes/HWAttributeSet.h"
 
+#include "Abilities/GameplayAbility.h"
+#include "Abilities/GA_ElementalBolt.h"
+#include "Abilities/GA_Melee.h"
+#include "Abilities/GA_Blink.h"
+#include "Abilities/GA_Barrier.h"
+#include "Abilities/GA_Beam.h"
+#include "Abilities/GA_Nova.h"
+
 DEFINE_LOG_CATEGORY_STATIC(LogHWWitch, Log, All);
 
 AHWWitchCharacter::AHWWitchCharacter()
@@ -59,6 +67,16 @@ AHWWitchCharacter::AHWWitchCharacter()
 		Move->JumpZVelocity = 500.f;
 		Move->AirControl = 0.35f;
 	}
+
+	// Default GAS abilities granted on possession (overridable in BP defaults).
+	DefaultAbilities = {
+		UGA_ElementalBolt::StaticClass(),
+		UGA_Melee::StaticClass(),
+		UGA_Blink::StaticClass(),
+		UGA_Barrier::StaticClass(),
+		UGA_Beam::StaticClass(),
+		UGA_Nova::StaticClass()
+	};
 }
 
 void AHWWitchCharacter::BeginPlay()
@@ -81,6 +99,7 @@ void AHWWitchCharacter::AddDefaultMappingContext()
 {
 	if (!DefaultMappingContext)
 	{
+		UE_LOG(LogHWWitch, Warning, TEXT("AddDefaultMappingContext: DefaultMappingContext is not set on the pawn."));
 		return;
 	}
 
@@ -92,8 +111,13 @@ void AHWWitchCharacter::AddDefaultMappingContext()
 				LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>())
 			{
 				Subsystem->AddMappingContext(DefaultMappingContext, 0);
+				UE_LOG(LogHWWitch, Log, TEXT("AddDefaultMappingContext: added '%s'."), *DefaultMappingContext->GetName());
 			}
 		}
+	}
+	else
+	{
+		UE_LOG(LogHWWitch, Verbose, TEXT("AddDefaultMappingContext: no PlayerController yet (deferred)."));
 	}
 }
 
@@ -131,6 +155,19 @@ void AHWWitchCharacter::InitAbilityActorInfoFromPlayerState()
 	{
 		// Owner is the player state (owns the ASC + attributes); avatar is this character.
 		HWAbilitySystemComponent->InitAbilityActorInfo(HWPS, this);
+
+		// Server grants the default abilities exactly once.
+		if (HasAuthority() && !bAbilitiesGranted)
+		{
+			for (const TSubclassOf<UGameplayAbility>& AbilityClass : DefaultAbilities)
+			{
+				if (AbilityClass)
+				{
+					HWAbilitySystemComponent->GiveAbility(FGameplayAbilitySpec(AbilityClass, 1, INDEX_NONE, this));
+				}
+			}
+			bAbilitiesGranted = true;
+		}
 	}
 }
 
@@ -163,6 +200,10 @@ void AHWWitchCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 			TEXT("HWWitchCharacter expects an EnhancedInputComponent. Set the default input class to EnhancedInputComponent in project settings."));
 		return;
 	}
+
+	// Reliable point to (re)add the mapping context: the controller + local player are
+	// valid here for the locally-possessed pawn (BeginPlay can run before possession).
+	AddDefaultMappingContext();
 
 	// ---- Movement & look (real) ----
 	if (IA_Move)
@@ -384,11 +425,11 @@ void AHWWitchCharacter::SelectElement3(const FInputActionValue& /*Value*/)
 
 void AHWWitchCharacter::DoDodge(const FInputActionValue& /*Value*/)
 {
-	// TODO(GAS): Replace this stub with a GameplayAbility activation, e.g. send the
-	// "Ability.Movement.Dodge" gameplay event / TryActivateAbilitiesByTag so the
-	// dodge-roll ability handles the fixed-distance fast-start curve and grants the
-	// i-frame window (mirrors WitchController.StartRoll / IsInvulnerable).
-	UE_LOG(LogHWWitch, Log, TEXT("[STUB] DoDodge — TODO: activate dodge-roll GameplayAbility (i-frames)."));
+	// Blink = a short forward dash with an i-frame window — our dodge.
+	if (AbilitySystemComponent)
+	{
+		AbilitySystemComponent->TryActivateAbilityByClass(UGA_Blink::StaticClass());
+	}
 }
 
 void AHWWitchCharacter::DoSlide(const FInputActionValue& /*Value*/)
@@ -401,10 +442,15 @@ void AHWWitchCharacter::DoSlide(const FInputActionValue& /*Value*/)
 
 void AHWWitchCharacter::DoFire(const FInputActionValue& /*Value*/)
 {
-	// TODO(GAS): Replace this stub with a GameplayAbility activation for the primary
-	// attack, selecting the cast based on CurrentElement (Fire/Ice/Wind) — fire spell
-	// while aiming, melee from the hip. Route via TryActivateAbilityByClass / a gameplay
-	// event carrying the element tag.
-	UE_LOG(LogHWWitch, Log, TEXT("[STUB] DoFire — TODO: activate fire/melee GameplayAbility for element %d."),
-		static_cast<int32>(CurrentElement));
+	if (!AbilitySystemComponent)
+	{
+		return;
+	}
+
+	// Aiming -> elemental bolt (uses CurrentElement); from the hip -> staff melee.
+	// Mirrors the Unity WandCaster context-sensitive LMB.
+	const TSubclassOf<UGameplayAbility> AbilityClass = bIsAiming
+		? TSubclassOf<UGameplayAbility>(UGA_ElementalBolt::StaticClass())
+		: TSubclassOf<UGameplayAbility>(UGA_Melee::StaticClass());
+	AbilitySystemComponent->TryActivateAbilityByClass(AbilityClass);
 }
